@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
 using NDesk.Options;
+using System.Collections.Generic;
 
 namespace AppHarbor.SqlServerBulkCopy
 {
@@ -13,10 +14,11 @@ namespace AppHarbor.SqlServerBulkCopy
 		static void Main(string[] args)
 		{
 			bool showHelp = false;
-
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
+
+			IEnumerable<string> ignoredTables = Enumerable.Empty<string>();
 
 			var optionSet = new OptionSet() {
 				{ "h|help", "show this message and exit", x => showHelp = x != null},
@@ -28,6 +30,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstusername=", "username on destination server", x => destinationUsername = x },
 				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
+				{ "ignoretables=", "names of tables not to copy", x => ignoredTables = x.Split(',') },
 			};
 
 			try
@@ -94,18 +97,29 @@ namespace AppHarbor.SqlServerBulkCopy
 				sourceServerName, sourceDatabaseName, sourceUsername,
 				sourcePassword);
 
+			var tables = sourceDatabase.Tables
+				.OfType<Table>()
+				.Where(x => !x.IsSystemObject)
+				.Select(x => x.Name);
+
+			var actualExcludedTables = tables.Intersect(ignoredTables);
+			if (actualExcludedTables.Any())
+			{
+				Console.WriteLine(string.Format("Ignoring: {0}", string.Join(",", actualExcludedTables)));
+			}
+
+			tables = tables.Except(ignoredTables);
 			Console.WriteLine(string.Format("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables)));
+
 			var watch = Stopwatch.StartNew();
 
-			foreach (Table table in sourceDatabase.Tables
-				.OfType<Table>()
-				.Where(x => !x.IsSystemObject))
+			foreach (var table in tables)
 			{
-				Console.WriteLine(string.Format("Copying {0}", table.Name));
+				Console.WriteLine(string.Format("Copying {0}", table));
 
 				using (var connection = new SqlConnection(sourceConnectionString))
 				{
-					var sqlCommand = new SqlCommand(string.Format("select * from {0}", table.Name), connection);
+					var sqlCommand = new SqlCommand(string.Format("select * from [{0}]", table), connection);
 					connection.Open();
 					var reader = sqlCommand.ExecuteReader();
 
