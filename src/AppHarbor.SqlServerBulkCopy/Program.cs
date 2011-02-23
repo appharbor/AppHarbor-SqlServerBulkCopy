@@ -17,14 +17,15 @@ namespace AppHarbor.SqlServerBulkCopy
 				destinationPassword = null, destinationDatabaseName = null;
 
 			var optionSet = new OptionSet() {
-				{ "srcserver=", "", x => sourceServerName = x },
-				{ "srcusername=", "", x => sourceUsername = x },
-				{ "srcpassword=", "", x => sourcePassword = x },
-				{ "srcdatabasename=", "", x => sourceDatabaseName = x },
-				{ "dstserver=", "", x => destinationServerName = x },
-				{ "dstusername=", "", x => destinationUsername = x },
-				{ "dstpassword=", "", x => destinationPassword = x },
-				{ "dstdatabasename=", "", x => destinationDatabaseName = x },
+				{ "h|help", "show this message and exit", x => showHelp = x != null},
+				{ "srcserver=", "source server (eg. db000.appharbor.net)", x => sourceServerName = x },
+				{ "srcusername=", "username on source server", x => sourceUsername = x },
+				{ "srcpassword=", "password on source server", x => sourcePassword = x },
+				{ "srcdatabasename=", "source database name", x => sourceDatabaseName = x },
+				{ "dstserver=", "destination server", x => destinationServerName = x },
+				{ "dstusername=", "username on destination server", x => destinationUsername = x },
+				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
+				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 			};
 
 			optionSet.Parse(args);
