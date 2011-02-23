@@ -110,7 +110,7 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
 					{
-						bulkCopy.DestinationTableName = table.Name;
+						bulkCopy.DestinationTableName = string.Format("[{0}]", table);
 						bulkCopy.BatchSize = 10000;
 						bulkCopy.BulkCopyTimeout = int.MaxValue;
 						bulkCopy.WriteToServer(reader);
