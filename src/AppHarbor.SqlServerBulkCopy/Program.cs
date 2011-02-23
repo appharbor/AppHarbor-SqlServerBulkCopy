@@ -30,7 +30,49 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 			};
 
-			optionSet.Parse(args);
+			try
+			{
+				optionSet.Parse(args);
+				if (sourceServerName == null)
+				{
+					throw new OptionException("source server not specified", "srcserver");
+				}
+				if (sourceUsername == null)
+				{
+					throw new OptionException("source username not specified", "srcserver");
+				}
+				if (sourcePassword == null)
+				{
+					throw new OptionException("source password not specified", "srcserver");
+				}
+				if (sourceDatabaseName == null)
+				{
+					throw new OptionException("source database name not specified", "srcserver");
+				}
+				if (destinationServerName == null)
+				{
+					throw new OptionException("destination server not specified", "srcserver");
+				}
+				if (destinationUsername == null)
+				{
+					throw new OptionException("destination username not specified", "srcserver");
+				}
+				if (destinationPassword == null)
+				{
+					throw new OptionException("destination password not specified", "srcserver");
+				}
+				if (destinationDatabaseName == null)
+				{
+					throw new OptionException("destination database name not specified", "srcserver");
+				}
+			}
+			catch (OptionException exception)
+			{
+				Console.Write(string.Format("{0}: ", AppDomain.CurrentDomain.FriendlyName));
+				Console.WriteLine(exception.Message);
+				Console.WriteLine("Try {0} --help for more information", AppDomain.CurrentDomain.FriendlyName);
+				return;
+			}
 
 			var sourceConnection = new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
 			var sourceServer = new Server(sourceConnection);
