@@ -119,16 +119,19 @@ namespace AppHarbor.SqlServerBulkCopy
 
 				using (var connection = new SqlConnection(sourceConnectionString))
 				{
-					var sqlCommand = new SqlCommand(string.Format("select * from [{0}]", table), connection);
 					connection.Open();
-					var reader = sqlCommand.ExecuteReader();
-
-					using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
+					using (var command = connection.CreateCommand())
 					{
-						bulkCopy.DestinationTableName = string.Format("[{0}]", table);
-						bulkCopy.BatchSize = 10000;
-						bulkCopy.BulkCopyTimeout = int.MaxValue;
-						bulkCopy.WriteToServer(reader);
+						command.CommandText = string.Format("select * from [{0}]", table);
+						var reader = command.ExecuteReader();
+
+						using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
+						{
+							bulkCopy.DestinationTableName = string.Format("[{0}]", table);
+							bulkCopy.BatchSize = 10000;
+							bulkCopy.BulkCopyTimeout = int.MaxValue;
+							bulkCopy.WriteToServer(reader);
+						}
 					}
 				}
 			}
