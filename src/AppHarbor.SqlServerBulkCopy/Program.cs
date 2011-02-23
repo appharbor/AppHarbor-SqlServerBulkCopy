@@ -72,5 +72,13 @@ namespace AppHarbor.SqlServerBulkCopy
 			watch.Stop();
 			Console.WriteLine("Copy complete, total time {0}", watch.ElapsedMilliseconds);
 		}
+
+		private static void ShowHelp(OptionSet optionSet)
+		{
+			Console.WriteLine("Copy data between Microsoft SQL Server databases");
+			Console.WriteLine();
+			Console.WriteLine("Options:");
+			optionSet.WriteOptionDescriptions(Console.Out);
+		}
 	}
 }
