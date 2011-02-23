@@ -12,6 +12,8 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
+			bool showHelp = false;
+
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
