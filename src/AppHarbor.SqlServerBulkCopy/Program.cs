@@ -74,6 +74,12 @@ namespace AppHarbor.SqlServerBulkCopy
 				return;
 			}
 
+			if (showHelp)
+			{
+				ShowHelp(optionSet);
+				return;
+			}
+
 			var sourceConnection = new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
