@@ -13,6 +13,7 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
+			double batchDataSize = 20000; //kb
 			bool showHelp = false;
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
@@ -115,23 +116,51 @@ namespace AppHarbor.SqlServerBulkCopy
 
 			foreach (var table in tables)
 			{
-				Console.WriteLine(string.Format("Copying {0}", table));
-
 				using (var connection = new SqlConnection(sourceConnectionString))
 				{
+					double rowBatchSize = 10000;
+					double rows = 0;
+					double dataSize;
 					connection.Open();
 					using (var command = connection.CreateCommand())
 					{
-						command.CommandText = string.Format("select * from [{0}]", table);
-						var reader = command.ExecuteReader();
-
-						using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
+						command.CommandText = string.Format("exec sp_spaceused '{0}'", table);
+						using (var reader = command.ExecuteReader())
 						{
-							bulkCopy.DestinationTableName = string.Format("[{0}]", table);
-							bulkCopy.BatchSize = 10000;
-							bulkCopy.BulkCopyTimeout = int.MaxValue;
-							bulkCopy.WriteToServer(reader);
+							reader.Read();
+							var rowString = (string)reader["rows"];
+							rows = double.Parse(rowString);
+							var dataSizeString = (string)reader["data"];
+							dataSize = double.Parse(dataSizeString.Split(' ').First()); //kb
+							if (rows > 0 && dataSize > 0)
+							{
+								double rowSize = dataSize / rows;
+								rowBatchSize = (int)(batchDataSize / rowSize);
+							}
 						}
+					}
+
+					if (rows > 0)
+					{
+						Console.WriteLine(string.Format("Copying {0} - {1} rows, {2:0.00} MB", table, rows, dataSize/1024));
+						using (var command = connection.CreateCommand())
+						{
+							command.CommandText = string.Format("select * from [{0}]", table);
+							using (var reader = command.ExecuteReader())
+							{
+								using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
+								{
+									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
+									bulkCopy.BatchSize = (int)rowBatchSize;
+									bulkCopy.BulkCopyTimeout = int.MaxValue;
+									bulkCopy.WriteToServer(reader);
+								}
+							}
+						}
+					}
+					else
+					{
+						Console.WriteLine(string.Format("{0} had no rows", table));
 					}
 				}
 			}
