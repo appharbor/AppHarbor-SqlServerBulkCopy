@@ -118,7 +118,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				}
 			}
 			watch.Stop();
-			Console.WriteLine("Copy complete, total time {0}", watch.ElapsedMilliseconds);
+			Console.WriteLine("Copy complete, total time {0} ms", watch.ElapsedMilliseconds);
 		}
 
 		private static void ShowHelp(OptionSet optionSet)
