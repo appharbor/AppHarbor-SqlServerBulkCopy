@@ -88,15 +88,11 @@ namespace AppHarbor.SqlServerBulkCopy
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
 
-			var connectionstringFormatString = "Server={0};Database={1};User ID={2};Password={3};";
+			var destinationConnectionString = GetConnectionString(destinationServerName,
+				destinationDatabaseName, destinationUsername, destinationPassword);
 
-			var destinationConnectionString = string.Format(connectionstringFormatString,
-				destinationServerName, destinationDatabaseName, destinationUsername,
-				destinationPassword);
-			
-			var sourceConnectionString = string.Format(connectionstringFormatString,
-				sourceServerName, sourceDatabaseName, sourceUsername,
-				sourcePassword);
+			var sourceConnectionString = GetConnectionString(sourceServerName,
+				sourceDatabaseName, sourceUsername, sourcePassword);
 
 			var tables = sourceDatabase.Tables
 				.OfType<Table>()
@@ -174,6 +170,13 @@ namespace AppHarbor.SqlServerBulkCopy
 			Console.WriteLine();
 			Console.WriteLine("Options:");
 			optionSet.WriteOptionDescriptions(Console.Out);
+		}
+
+		private static string GetConnectionString(string serverName, string databaseName, string username,
+			string password)
+		{
+			return string.Format("Server={0};Database={1};User ID={2};Password={3};",
+				serverName, databaseName, username, password);
 		}
 	}
 }
