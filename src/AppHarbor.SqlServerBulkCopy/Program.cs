@@ -94,6 +94,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				sourceServerName, sourceDatabaseName, sourceUsername,
 				sourcePassword);
 
+			Console.WriteLine(string.Format("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables)));
 			var watch = Stopwatch.StartNew();
 
 			foreach (Table table in sourceDatabase.Tables
