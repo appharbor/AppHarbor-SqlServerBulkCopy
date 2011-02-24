@@ -138,7 +138,7 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					if (rows > 0)
 					{
-						Console.WriteLine(string.Format("Copying {0} - {1} rows, {2:0.00} MB", table, rows, dataSize/1024));
+						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
 						using (var command = connection.CreateCommand())
 						{
 							command.CommandText = string.Format("select * from [{0}]", table);
@@ -146,6 +146,8 @@ namespace AppHarbor.SqlServerBulkCopy
 							{
 								using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
 								{
+									bulkCopy.NotifyAfter = Math.Max((int)rows / 10, 1);
+									bulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(SqlRowsCopied);
 									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
@@ -153,6 +155,7 @@ namespace AppHarbor.SqlServerBulkCopy
 								}
 							}
 						}
+						Console.WriteLine();
 					}
 					else
 					{
@@ -162,6 +165,11 @@ namespace AppHarbor.SqlServerBulkCopy
 			}
 			watch.Stop();
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
+		}
+
+		private static void SqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
+		{
+			Console.Write(".");
 		}
 
 		private static void ShowHelp(OptionSet optionSet)
