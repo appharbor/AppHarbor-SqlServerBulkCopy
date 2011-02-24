@@ -94,10 +94,13 @@ namespace AppHarbor.SqlServerBulkCopy
 			var sourceConnectionString = GetConnectionString(sourceServerName,
 				sourceDatabaseName, sourceUsername, sourcePassword);
 
+			Console.WriteLine("Retrieving source database table information...");
+
 			var tables = sourceDatabase.Tables
 				.OfType<Table>()
 				.Where(x => !x.IsSystemObject)
-				.Select(x => x.Name);
+				.Select(x => x.Name)
+				.ToList();
 
 			var actualExcludedTables = tables.Intersect(ignoredTables);
 			if (actualExcludedTables.Any())
@@ -105,7 +108,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				Console.WriteLine(string.Format("Ignoring: {0}", string.Join(",", actualExcludedTables)));
 			}
 
-			tables = tables.Except(ignoredTables);
+			tables = tables.Except(ignoredTables).ToList();
 			Console.WriteLine(string.Format("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables)));
 
 			var watch = Stopwatch.StartNew();
