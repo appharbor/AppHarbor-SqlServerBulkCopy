@@ -43,31 +43,31 @@ namespace AppHarbor.SqlServerBulkCopy
 				}
 				if (sourceUsername == null)
 				{
-					throw new OptionException("source username not specified", "srcserver");
+					throw new OptionException("source username not specified", "srcusername");
 				}
 				if (sourcePassword == null)
 				{
-					throw new OptionException("source password not specified", "srcserver");
+					throw new OptionException("source password not specified", "srcpassword");
 				}
 				if (sourceDatabaseName == null)
 				{
-					throw new OptionException("source database name not specified", "srcserver");
+					throw new OptionException("source database name not specified", "srcdatabasename");
 				}
 				if (destinationServerName == null)
 				{
-					throw new OptionException("destination server not specified", "srcserver");
+					throw new OptionException("destination server not specified", "dstserver");
 				}
 				if (destinationUsername == null)
 				{
-					throw new OptionException("destination username not specified", "srcserver");
+					throw new OptionException("destination username not specified", "dstusername");
 				}
 				if (destinationPassword == null)
 				{
-					throw new OptionException("destination password not specified", "srcserver");
+					throw new OptionException("destination password not specified", "dstpassword");
 				}
 				if (destinationDatabaseName == null)
 				{
-					throw new OptionException("destination database name not specified", "srcserver");
+					throw new OptionException("destination database name not specified", "dstdatabasename");
 				}
 			}
 			catch (OptionException exception)
