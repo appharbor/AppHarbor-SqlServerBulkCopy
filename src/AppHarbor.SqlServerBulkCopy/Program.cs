@@ -13,7 +13,7 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
-			double batchDataSize = 20000; //kb
+			double batchDataSize = 20000; //kB
 			bool showHelp = false;
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
@@ -127,7 +127,7 @@ namespace AppHarbor.SqlServerBulkCopy
 							var rowString = (string)reader["rows"];
 							rows = double.Parse(rowString);
 							var dataSizeString = (string)reader["data"];
-							dataSize = double.Parse(dataSizeString.Split(' ').First()); //kb
+							dataSize = double.Parse(dataSizeString.Split(' ').First()); //kB
 							if (rows > 0 && dataSize > 0)
 							{
 								double rowSize = dataSize / rows;
