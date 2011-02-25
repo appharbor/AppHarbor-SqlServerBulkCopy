@@ -84,17 +84,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				return;
 			}
 
+			Console.WriteLine("Retrieving source database table information...");
+
 			var sourceConnection = new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
-
-			var destinationConnectionString = GetConnectionString(destinationServerName,
-				destinationDatabaseName, destinationUsername, destinationPassword);
-
-			var sourceConnectionString = GetConnectionString(sourceServerName,
-				sourceDatabaseName, sourceUsername, sourcePassword);
-
-			Console.WriteLine("Retrieving source database table information...");
 
 			var tables = sourceDatabase.Tables
 				.OfType<Table>()
@@ -110,6 +104,12 @@ namespace AppHarbor.SqlServerBulkCopy
 
 			tables = tables.Except(ignoredTables).ToList();
 			Console.WriteLine(string.Format("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables)));
+
+			var destinationConnectionString = GetConnectionString(destinationServerName,
+				destinationDatabaseName, destinationUsername, destinationPassword);
+
+			var sourceConnectionString = GetConnectionString(sourceServerName,
+				sourceDatabaseName, sourceUsername, sourcePassword);
 
 			var watch = Stopwatch.StartNew();
 
