@@ -147,7 +147,8 @@ namespace AppHarbor.SqlServerBulkCopy
 							command.CommandText = string.Format("select * from [{0}]", table);
 							using (var reader = command.ExecuteReader())
 							{
-								using (var bulkCopy = new SqlBulkCopy(destinationConnectionString))
+								using (var bulkCopy = new SqlBulkCopy(
+									destinationConnectionString, SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock))
 								{
 									bulkCopy.NotifyAfter = Math.Max((int)rows / 10, 1);
 									bulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(SqlRowsCopied);
