@@ -13,7 +13,7 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
-			double batchDataSize = 20000; //kB
+			double batchDataSize = 100000; //kB
 			bool showHelp = false;
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
