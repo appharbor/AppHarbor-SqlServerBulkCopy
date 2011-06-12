@@ -57,11 +57,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("destination server not specified", "dstserver");
 				}
-				if (destinationUsername == null)
+				if (destinationUsername == null && destinationPassword != null)
 				{
 					throw new OptionException("destination username not specified", "dstusername");
 				}
-				if (destinationPassword == null)
+				if (destinationPassword == null && destinationUsername != null)
 				{
 					throw new OptionException("destination password not specified", "dstpassword");
 				}
