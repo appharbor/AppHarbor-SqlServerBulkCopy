@@ -41,11 +41,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("source server not specified", "srcserver");
 				}
-				if (sourceUsername == null)
+				if (sourceUsername == null && sourcePassword != null)
 				{
 					throw new OptionException("source username not specified", "srcusername");
 				}
-				if (sourcePassword == null)
+				if (sourcePassword == null && sourceUsername != null)
 				{
 					throw new OptionException("source password not specified", "srcpassword");
 				}
@@ -57,11 +57,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("destination server not specified", "dstserver");
 				}
-				if (destinationUsername == null)
+				if (destinationUsername == null && destinationPassword != null)
 				{
 					throw new OptionException("destination username not specified", "dstusername");
 				}
-				if (destinationPassword == null)
+				if (destinationPassword == null && destinationUsername != null)
 				{
 					throw new OptionException("destination password not specified", "dstpassword");
 				}
@@ -86,7 +86,10 @@ namespace AppHarbor.SqlServerBulkCopy
 
 			Console.WriteLine("Retrieving source database table information...");
 
-			var sourceConnection = new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
+			var usingTrustedConnection = string.IsNullOrEmpty(sourceUsername) && string.IsNullOrEmpty(sourcePassword);
+			var sourceConnection = usingTrustedConnection
+				? new ServerConnection(sourceServerName) { LoginSecure = true }
+				: new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
 
@@ -184,11 +187,17 @@ namespace AppHarbor.SqlServerBulkCopy
 			optionSet.WriteOptionDescriptions(Console.Out);
 		}
 
-		private static string GetConnectionString(string serverName, string databaseName, string username,
-			string password)
+		static string GetConnectionString(string serverName, string databaseName, string username, string password)
 		{
-			return string.Format("Server={0};Database={1};User ID={2};Password={3};",
-				serverName, databaseName, username, password);
+			var usingTrustedConnection =
+				string.IsNullOrEmpty(username) &&
+				string.IsNullOrEmpty(password);
+
+			var connectionStringFormat = usingTrustedConnection
+				? "Server={0};Database={1};Trusted_Connection=True;"
+				: "Server={0};Database={1};User ID={2};Password={3};";
+
+			return string.Format(connectionStringFormat, serverName, databaseName, username, password);
 		}
 	}
 }
