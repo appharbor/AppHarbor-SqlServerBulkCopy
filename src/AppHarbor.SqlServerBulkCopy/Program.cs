@@ -144,6 +144,8 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					if (rows > 0)
 					{
+                        var columns = GetColumnNames(connection, table);
+
 						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
 						using (var command = connection.CreateCommand())
 						{
@@ -158,6 +160,10 @@ namespace AppHarbor.SqlServerBulkCopy
 									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
+                                    foreach (var columnName in columns) {
+                                        bulkCopy.ColumnMappings.Add(columnName, columnName);
+                                    }
+
 									bulkCopy.WriteToServer(reader);
 								}
 							}
@@ -173,6 +179,28 @@ namespace AppHarbor.SqlServerBulkCopy
 			watch.Stop();
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
 		}
+
+        private static List<string> GetColumnNames(SqlConnection connection, string tableName) {
+            var sql =
+                @"select column_name
+                from information_schema.columns 
+                where table_name = @tablename
+                and columnproperty(object_id(@tablename),column_name,'iscomputed') != 1";
+
+            using (var command = connection.CreateCommand()) {
+                command.CommandText = sql;
+                command.Parameters.Add(new SqlParameter("@tablename", tableName));
+
+                var cnames = new List<string>();
+                using (var reader = command.ExecuteReader()) {
+                    while (reader.Read()) {
+                        cnames.Add((string)reader[0]);
+                    }
+                }
+
+                return cnames;
+            }
+        }
 
 		private static void SqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
 		{
