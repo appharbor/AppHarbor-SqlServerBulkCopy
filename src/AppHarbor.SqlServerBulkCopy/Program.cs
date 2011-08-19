@@ -18,6 +18,7 @@ namespace AppHarbor.SqlServerBulkCopy
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
+			bool clearDestinationDatabase = false;
 
 			IEnumerable<string> ignoredTables = Enumerable.Empty<string>();
 
@@ -32,6 +33,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 				{ "ignoretables=", "names of tables not to copy", x => ignoredTables = x.Split(',') },
+				{ "cleardstdatabase", "clears the destination database before copying the data", x => clearDestinationDatabase = true }
 			};
 
 			try
@@ -116,6 +118,35 @@ namespace AppHarbor.SqlServerBulkCopy
 
 			var watch = Stopwatch.StartNew();
 
+			// clear the data before copying
+			if (clearDestinationDatabase)
+			{
+				using (var connection = new SqlConnection(destinationConnectionString))
+				{
+					using (SqlCommand command = connection.CreateCommand())
+					{
+						// http://stackoverflow.com/questions/155246/how-do-you-truncate-all-tables-in-a-database-using-tsql/156813#156813
+						command.CommandText = @"
+							-- disable all constraints
+							EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all""
+
+							-- delete data in all tables
+							EXEC sp_msforeachtable ""DELETE FROM ?""
+
+							-- enable all constraints
+							exec sp_msforeachtable ""ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all""
+
+							-- reseed (auto increment to 0)
+							EXEC sp_msforeachtable ""DBCC CHECKIDENT ( '?', RESEED, 0)""
+						";
+
+						Console.WriteLine("Clearing the destination database");
+						connection.Open();
+						command.ExecuteNonQuery();
+					}
+				}
+			}
+
 			foreach (var table in tables)
 			{
 				using (var connection = new SqlConnection(sourceConnectionString))
@@ -144,7 +175,7 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					if (rows > 0)
 					{
-                        var columns = GetColumnNames(connection, table);
+						var columns = GetColumnNames(connection, table);
 
 						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
 						using (var command = connection.CreateCommand())
@@ -160,9 +191,9 @@ namespace AppHarbor.SqlServerBulkCopy
 									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
-                                    foreach (var columnName in columns) {
-                                        bulkCopy.ColumnMappings.Add(columnName, columnName);
-                                    }
+									foreach (var columnName in columns) {
+										bulkCopy.ColumnMappings.Add(columnName, columnName);
+									}
 
 									bulkCopy.WriteToServer(reader);
 								}
@@ -180,27 +211,27 @@ namespace AppHarbor.SqlServerBulkCopy
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
 		}
 
-        private static List<string> GetColumnNames(SqlConnection connection, string tableName) {
-            var sql =
-                @"select column_name
-                from information_schema.columns 
-                where table_name = @tablename
-                and columnproperty(object_id(@tablename),column_name,'iscomputed') != 1";
+		private static List<string> GetColumnNames(SqlConnection connection, string tableName) {
+			var sql =
+				@"select column_name
+				from information_schema.columns 
+				where table_name = @tablename
+				and columnproperty(object_id(@tablename),column_name,'iscomputed') != 1";
 
-            using (var command = connection.CreateCommand()) {
-                command.CommandText = sql;
-                command.Parameters.Add(new SqlParameter("@tablename", tableName));
+			using (var command = connection.CreateCommand()) {
+				command.CommandText = sql;
+				command.Parameters.Add(new SqlParameter("@tablename", tableName));
 
-                var cnames = new List<string>();
-                using (var reader = command.ExecuteReader()) {
-                    while (reader.Read()) {
-                        cnames.Add((string)reader[0]);
-                    }
-                }
+				var cnames = new List<string>();
+				using (var reader = command.ExecuteReader()) {
+					while (reader.Read()) {
+						cnames.Add((string)reader[0]);
+					}
+				}
 
-                return cnames;
-            }
-        }
+				return cnames;
+			}
+		}
 
 		private static void SqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
 		{
