@@ -18,6 +18,7 @@ namespace AppHarbor.SqlServerBulkCopy
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
+			bool clearDestinationDatabase = false;
 
 			IEnumerable<string> ignoredTables = Enumerable.Empty<string>();
 
@@ -32,6 +33,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 				{ "ignoretables=", "names of tables not to copy", x => ignoredTables = x.Split(',') },
+				{ "cleardstdatabase", "clears the destination database before copying the data", x => clearDestinationDatabase = true }
 			};
 
 			try
@@ -41,11 +43,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("source server not specified", "srcserver");
 				}
-				if (sourceUsername == null)
+				if (sourceUsername == null && sourcePassword != null)
 				{
 					throw new OptionException("source username not specified", "srcusername");
 				}
-				if (sourcePassword == null)
+				if (sourcePassword == null && sourceUsername != null)
 				{
 					throw new OptionException("source password not specified", "srcpassword");
 				}
@@ -57,11 +59,11 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("destination server not specified", "dstserver");
 				}
-				if (destinationUsername == null)
+				if (destinationUsername == null && destinationPassword != null)
 				{
 					throw new OptionException("destination username not specified", "dstusername");
 				}
-				if (destinationPassword == null)
+				if (destinationPassword == null && destinationUsername != null)
 				{
 					throw new OptionException("destination password not specified", "dstpassword");
 				}
@@ -86,7 +88,10 @@ namespace AppHarbor.SqlServerBulkCopy
 
 			Console.WriteLine("Retrieving source database table information...");
 
-			var sourceConnection = new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
+			var usingTrustedConnection = string.IsNullOrEmpty(sourceUsername) && string.IsNullOrEmpty(sourcePassword);
+			var sourceConnection = usingTrustedConnection
+				? new ServerConnection(sourceServerName) { LoginSecure = true }
+				: new ServerConnection(sourceServerName, sourceUsername, sourcePassword);
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
 
@@ -112,6 +117,35 @@ namespace AppHarbor.SqlServerBulkCopy
 				sourceDatabaseName, sourceUsername, sourcePassword);
 
 			var watch = Stopwatch.StartNew();
+
+			// clear the data before copying
+			if (clearDestinationDatabase)
+			{
+				using (var connection = new SqlConnection(destinationConnectionString))
+				{
+					using (SqlCommand command = connection.CreateCommand())
+					{
+						// http://stackoverflow.com/questions/155246/how-do-you-truncate-all-tables-in-a-database-using-tsql/156813#156813
+						command.CommandText = @"
+							-- disable all constraints
+							EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all""
+
+							-- delete data in all tables
+							EXEC sp_msforeachtable ""DELETE FROM ?""
+
+							-- enable all constraints
+							exec sp_msforeachtable ""ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all""
+
+							-- reseed (auto increment to 0)
+							EXEC sp_msforeachtable ""DBCC CHECKIDENT ( '?', RESEED, 0)""
+						";
+
+						Console.WriteLine("Clearing the destination database");
+						connection.Open();
+						command.ExecuteNonQuery();
+					}
+				}
+			}
 
 			foreach (var table in tables)
 			{
@@ -141,6 +175,8 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					if (rows > 0)
 					{
+						var columns = GetColumnNames(connection, table);
+
 						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
 						using (var command = connection.CreateCommand())
 						{
@@ -155,6 +191,10 @@ namespace AppHarbor.SqlServerBulkCopy
 									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
+									foreach (var columnName in columns) {
+										bulkCopy.ColumnMappings.Add(columnName, columnName);
+									}
+
 									bulkCopy.WriteToServer(reader);
 								}
 							}
@@ -171,6 +211,28 @@ namespace AppHarbor.SqlServerBulkCopy
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
 		}
 
+		private static List<string> GetColumnNames(SqlConnection connection, string tableName) {
+			var sql =
+				@"select column_name
+				from information_schema.columns 
+				where table_name = @tablename
+				and columnproperty(object_id(@tablename),column_name,'iscomputed') != 1";
+
+			using (var command = connection.CreateCommand()) {
+				command.CommandText = sql;
+				command.Parameters.Add(new SqlParameter("@tablename", tableName));
+
+				var cnames = new List<string>();
+				using (var reader = command.ExecuteReader()) {
+					while (reader.Read()) {
+						cnames.Add((string)reader[0]);
+					}
+				}
+
+				return cnames;
+			}
+		}
+
 		private static void SqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
 		{
 			Console.Write(".");
@@ -184,11 +246,17 @@ namespace AppHarbor.SqlServerBulkCopy
 			optionSet.WriteOptionDescriptions(Console.Out);
 		}
 
-		private static string GetConnectionString(string serverName, string databaseName, string username,
-			string password)
+		static string GetConnectionString(string serverName, string databaseName, string username, string password)
 		{
-			return string.Format("Server={0};Database={1};User ID={2};Password={3};",
-				serverName, databaseName, username, password);
+			var usingTrustedConnection =
+				string.IsNullOrEmpty(username) &&
+				string.IsNullOrEmpty(password);
+
+			var connectionStringFormat = usingTrustedConnection
+				? "Server={0};Database={1};Trusted_Connection=True;"
+				: "Server={0};Database={1};User ID={2};Password={3};";
+
+			return string.Format(connectionStringFormat, serverName, databaseName, username, password);
 		}
 	}
 }
