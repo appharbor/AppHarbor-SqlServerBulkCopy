@@ -242,7 +242,8 @@ namespace AppHarbor.SqlServerBulkCopy
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
 		}
 
-		private static List<string> GetColumnNames(SqlConnection connection, string tableName) {
+		private static List<string> GetColumnNames(SqlConnection connection, string tableName)
+		{
 			var sql =
 				@"select column_name
 				from information_schema.columns 
