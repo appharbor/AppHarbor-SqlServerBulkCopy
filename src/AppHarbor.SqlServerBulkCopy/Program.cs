@@ -39,12 +39,12 @@ namespace AppHarbor.SqlServerBulkCopy
 			try
 			{
 				optionSet.Parse(args);
-                if (showHelp)
-                {
-                    ShowHelp(optionSet);
-                    return;
-                }
-                if (sourceServerName == null)
+				if (showHelp)
+				{
+					ShowHelp(optionSet);
+					return;
+				}
+				if (sourceServerName == null)
 				{
 					throw new OptionException("source server not specified", "srcserver");
 				}
