@@ -39,7 +39,12 @@ namespace AppHarbor.SqlServerBulkCopy
 			try
 			{
 				optionSet.Parse(args);
-				if (sourceServerName == null)
+                if (showHelp)
+                {
+                    ShowHelp(optionSet);
+                    return;
+                }
+                if (sourceServerName == null)
 				{
 					throw new OptionException("source server not specified", "srcserver");
 				}
@@ -79,13 +84,7 @@ namespace AppHarbor.SqlServerBulkCopy
 				Console.WriteLine("Try {0} --help for more information", AppDomain.CurrentDomain.FriendlyName);
 				return;
 			}
-
-			if (showHelp)
-			{
-				ShowHelp(optionSet);
-				return;
-			}
-
+            
 			Console.WriteLine("Retrieving source database table information...");
 
 			var usingTrustedConnection = string.IsNullOrEmpty(sourceUsername) && string.IsNullOrEmpty(sourcePassword);
