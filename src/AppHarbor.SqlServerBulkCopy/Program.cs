@@ -125,6 +125,7 @@ namespace AppHarbor.SqlServerBulkCopy
 					using (SqlCommand command = connection.CreateCommand())
 					{
 						// http://stackoverflow.com/questions/155246/how-do-you-truncate-all-tables-in-a-database-using-tsql/156813#156813
+						// http://stackoverflow.com/questions/6542061/reseed-sql-server-identity-columns
 						command.CommandText = @"
 							-- disable all constraints
 							EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all""
@@ -135,8 +136,20 @@ namespace AppHarbor.SqlServerBulkCopy
 							-- enable all constraints
 							exec sp_msforeachtable ""ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all""
 
-							-- reseed (auto increment to 0)
-							EXEC sp_msforeachtable ""DBCC CHECKIDENT ( '?', RESEED, 0)""
+							-- reseed (auto increment to 0) on user tables with identity column
+							DECLARE @sql NVARCHAR(MAX) = N'';
+
+							SELECT @sql = @sql + N'DBCC CHECKIDENT(''' 
+								+ QUOTENAME(OBJECT_SCHEMA_NAME(col.[object_id]))
+								+ '.' + QUOTENAME(OBJECT_NAME(col.[object_id])) 
+								+ ''', RESEED, 0);' + CHAR(13) + CHAR(10)
+								FROM sys.columns as col
+								JOIN sys.tables as tbl
+								ON col.[object_id] = tbl.[object_id]
+								WHERE tbl.[type] = 'U'
+								AND col.[is_identity] = 1;
+
+							EXEC sp_executesql @sql;
 						";
 
 						Console.WriteLine("Clearing the destination database");
