@@ -2,6 +2,8 @@
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
+
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
 using NDesk.Options;
@@ -18,7 +20,7 @@ namespace AppHarbor.SqlServerBulkCopy
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
-			bool clearDestinationDatabase = false;
+			bool clearDestinationDatabase = false, checkIdentityExists = false;
 
 			IEnumerable<string> ignoredTables = Enumerable.Empty<string>();
 
@@ -33,7 +35,8 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 				{ "ignoretables=", "names of tables not to copy", x => ignoredTables = x.Split(',') },
-				{ "cleardstdatabase", "clears the destination database before copying the data", x => clearDestinationDatabase = true }
+				{ "cleardstdatabase", "clears the destination database before copying the data", x => clearDestinationDatabase = x != null },
+				{ "checkidentityexists", "only reseed identity if table has identity column", x => checkIdentityExists = x != null }
 			};
 
 			try
@@ -125,7 +128,9 @@ namespace AppHarbor.SqlServerBulkCopy
 					using (SqlCommand command = connection.CreateCommand())
 					{
 						// http://stackoverflow.com/questions/155246/how-do-you-truncate-all-tables-in-a-database-using-tsql/156813#156813
-						command.CommandText = @"
+						StringBuilder commandBuilder = new StringBuilder();
+						commandBuilder.Append(
+							@"
 							-- disable all constraints
 							EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all""
 
@@ -134,10 +139,37 @@ namespace AppHarbor.SqlServerBulkCopy
 
 							-- enable all constraints
 							exec sp_msforeachtable ""ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all""
+						");
 
-							-- reseed (auto increment to 0)
-							EXEC sp_msforeachtable ""DBCC CHECKIDENT ( '?', RESEED, 0)""
-						";
+						if (checkIdentityExists)
+						{
+							// http://stackoverflow.com/questions/6542061/reseed-sql-server-identity-columns
+							commandBuilder.Append(
+								@"-- reseed (auto increment to 0) on user tables with identity column
+								DECLARE @reseedSql NVARCHAR(MAX);
+								SET @reseedSql = N'';
+
+								SELECT @reseedSql = @reseedSql + N'DBCC CHECKIDENT(''' 
+									+ QUOTENAME(OBJECT_SCHEMA_NAME(col.[object_id]))
+									+ '.' + QUOTENAME(OBJECT_NAME(col.[object_id])) 
+									+ ''', RESEED, 0);' + CHAR(13) + CHAR(10)
+									FROM sys.columns as col
+									JOIN sys.tables as tbl
+									ON col.[object_id] = tbl.[object_id]
+									WHERE tbl.[type] = 'U'
+									AND col.[is_identity] = 1;
+
+								EXEC sp_executesql @reseedSql;");
+						}
+						else
+						{
+							commandBuilder.Append(@"
+								-- reseed (auto increment to 0)
+								EXEC sp_msforeachtable ""DBCC CHECKIDENT ( '?', RESEED, 0)""
+							");
+						}
+
+						command.CommandText = commandBuilder.ToString();
 
 						Console.WriteLine("Clearing the destination database");
 						connection.Open();
