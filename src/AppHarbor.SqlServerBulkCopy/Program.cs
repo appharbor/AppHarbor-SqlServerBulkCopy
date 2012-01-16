@@ -100,7 +100,7 @@ namespace AppHarbor.SqlServerBulkCopy
 			var tables = sourceDatabase.Tables
 				.OfType<Table>()
 				.Where(x => !x.IsSystemObject)
-				.Select(x => x.Name)
+				.Select(x => '[' + x.Schema + ']' + ".[" + x.Name + ']')
 				.ToList();
 
 			var actualExcludedTables = tables.Intersect(ignoredTables);
@@ -211,7 +211,7 @@ namespace AppHarbor.SqlServerBulkCopy
 						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
 						using (var command = connection.CreateCommand())
 						{
-							command.CommandText = string.Format("select * from [{0}]", table);
+							command.CommandText = string.Format("select * from {0}", table);
 							using (var reader = command.ExecuteReader())
 							{
 								using (var bulkCopy = new SqlBulkCopy(
@@ -219,7 +219,7 @@ namespace AppHarbor.SqlServerBulkCopy
 								{
 									bulkCopy.NotifyAfter = Math.Max((int)rows / 10, 1);
 									bulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(SqlRowsCopied);
-									bulkCopy.DestinationTableName = string.Format("[{0}]", table);
+									bulkCopy.DestinationTableName = table;
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
 									foreach (var columnName in columns) {
