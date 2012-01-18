@@ -1,13 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
 using NDesk.Options;
-using System.Collections.Generic;
 
 namespace AppHarbor.SqlServerBulkCopy
 {
