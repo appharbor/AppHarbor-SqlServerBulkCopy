@@ -81,7 +81,7 @@ namespace AppHarbor.SqlServerBulkCopy
 			}
 			catch (OptionException exception)
 			{
-				Console.Write(string.Format("{0}: ", AppDomain.CurrentDomain.FriendlyName));
+				Console.Write("{0}: ", AppDomain.CurrentDomain.FriendlyName);
 				Console.WriteLine(exception.Message);
 				Console.WriteLine("Try {0} --help for more information", AppDomain.CurrentDomain.FriendlyName);
 				return;
@@ -99,17 +99,20 @@ namespace AppHarbor.SqlServerBulkCopy
 			var tables = sourceDatabase.Tables
 				.OfType<Table>()
 				.Where(x => !x.IsSystemObject)
-				.Select(x => '[' + x.Schema + ']' + ".[" + x.Name + ']')
+				.Select(x => new {x.Schema, x.Name, FullName = '[' + x.Schema + ']' + ".[" + x.Name + ']'})
 				.ToList();
 
-			var actualExcludedTables = tables.Intersect(ignoredTables);
-			if (actualExcludedTables.Any())
+		    var actualExcludedTables =
+		        (from table in tables 
+                 where ignoredTables.Contains(table.FullName) 
+                 select table).ToList();
+		    if (actualExcludedTables.Any())
 			{
-				Console.WriteLine(string.Format("Ignoring: {0}", string.Join(",", actualExcludedTables)));
+				Console.WriteLine("Ignoring: {0}", string.Join(",", actualExcludedTables.Select(x=>x.FullName)));
 			}
 
-			tables = tables.Except(ignoredTables).ToList();
-			Console.WriteLine(string.Format("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables)));
+			tables = tables.Except(actualExcludedTables).ToList();
+			Console.WriteLine("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables.Select(x=>x.FullName)));
 
 			var destinationConnectionString = GetConnectionString(destinationServerName,
 				destinationDatabaseName, destinationUsername, destinationPassword);
@@ -187,7 +190,7 @@ namespace AppHarbor.SqlServerBulkCopy
 					connection.Open();
 					using (var command = connection.CreateCommand())
 					{
-						command.CommandText = string.Format("exec sp_spaceused '{0}'", table);
+						command.CommandText = string.Format("exec sp_spaceused '{0}'", table.FullName);
 						using (var reader = command.ExecuteReader())
 						{
 							reader.Read();
@@ -205,20 +208,20 @@ namespace AppHarbor.SqlServerBulkCopy
 
 					if (rows > 0)
 					{
-						var columns = GetColumnNames(connection, table);
+						var columns = GetColumnNames(connection, table.Schema, table.Name);
 
-						Console.Write(string.Format("Copying {0} - {1} rows, {2:0.00} MB: ", table, rows, dataSize/1024));
+						Console.Write("Copying {0} - {1} rows, {2:0.00} MB: ", table.FullName, rows, dataSize/1024);
 						using (var command = connection.CreateCommand())
 						{
-							command.CommandText = string.Format("select * from {0}", table);
+							command.CommandText = string.Format("select * from {0}", table.FullName);
 							using (var reader = command.ExecuteReader())
 							{
 								using (var bulkCopy = new SqlBulkCopy(
 									destinationConnectionString, SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock))
 								{
 									bulkCopy.NotifyAfter = Math.Max((int)rows / 10, 1);
-									bulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(SqlRowsCopied);
-									bulkCopy.DestinationTableName = table;
+									bulkCopy.SqlRowsCopied += SqlRowsCopied;
+									bulkCopy.DestinationTableName = table.FullName;
 									bulkCopy.BatchSize = (int)rowBatchSize;
 									bulkCopy.BulkCopyTimeout = int.MaxValue;
 									foreach (var columnName in columns) {
@@ -233,7 +236,7 @@ namespace AppHarbor.SqlServerBulkCopy
 					}
 					else
 					{
-						Console.WriteLine(string.Format("{0} had no rows", table));
+						Console.WriteLine("{0} had no rows", table.FullName);
 					}
 				}
 			}
@@ -241,17 +244,19 @@ namespace AppHarbor.SqlServerBulkCopy
 			Console.WriteLine("Copy complete, total time {0} s", watch.ElapsedMilliseconds/1000);
 		}
 
-		private static List<string> GetColumnNames(SqlConnection connection, string tableName)
+		private static List<string> GetColumnNames(SqlConnection connection, string schemaName, string tableName)
 		{
 			var sql =
 				@"select column_name
 				from information_schema.columns 
 				where table_name = @tablename
+                and table_schema = @schemaName
 				and columnproperty(object_id(@tablename),column_name,'iscomputed') != 1";
 
 			using (var command = connection.CreateCommand()) {
 				command.CommandText = sql;
 				command.Parameters.Add(new SqlParameter("@tablename", tableName));
+                command.Parameters.Add(new SqlParameter("@schemaName", schemaName));
 
 				var cnames = new List<string>();
 				using (var reader = command.ExecuteReader()) {
