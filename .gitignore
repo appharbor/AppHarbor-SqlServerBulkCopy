@@ -3,7 +3,9 @@
 deploy
 deploy/*
 *.csproj.user
+*.DotSettings.user
 *.suo
 *.cache
 TestResults/
 lib/SqlServerManagementObjects/*.dll
+_Resharper.*
