@@ -14,7 +14,7 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
-			double batchDataSize = 100000; //kB
+			const double batchDataSize = 100000; //kB
 			bool showHelp = false;
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
@@ -108,11 +108,11 @@ namespace AppHarbor.SqlServerBulkCopy
                  select table).ToList();
 		    if (actualExcludedTables.Any())
 			{
-				Console.WriteLine("Ignoring: {0}", string.Join(",", actualExcludedTables.Select(x=>x.FullName)));
+				Console.WriteLine("Ignoring:\n{0}", string.Join("\n", actualExcludedTables.Select(x=>x.FullName)));
 			}
 
 			tables = tables.Except(actualExcludedTables).ToList();
-			Console.WriteLine("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables.Select(x=>x.FullName)));
+			Console.WriteLine("Copying {0} tables:\n{1}", tables.Count(), string.Join("\n", tables.Select(x=>x.FullName)));
 
 			var destinationConnectionString = GetConnectionString(destinationServerName,
 				destinationDatabaseName, destinationUsername, destinationPassword);
