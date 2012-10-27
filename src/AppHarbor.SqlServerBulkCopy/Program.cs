@@ -14,14 +14,15 @@ namespace AppHarbor.SqlServerBulkCopy
 	{
 		static void Main(string[] args)
 		{
-			double batchDataSize = 100000; //kB
+			const double batchDataSize = 100000; //kB
 			bool showHelp = false;
 			string sourceServerName = null, sourceUsername = null, sourcePassword = null,
 				sourceDatabaseName = null, destinationServerName = null, destinationUsername = null,
 				destinationPassword = null, destinationDatabaseName = null;
-			bool clearDestinationDatabase = false, checkIdentityExists = false;
+			bool includeSystemTables = false, clearDestinationDatabase = false, checkIdentityExists = false;
 
 			IEnumerable<string> ignoredTables = Enumerable.Empty<string>();
+			IEnumerable<string> onlyTables = Enumerable.Empty<string>();
 
 			var optionSet = new OptionSet() {
 				{ "h|help", "show this message and exit", x => showHelp = x != null},
@@ -34,6 +35,8 @@ namespace AppHarbor.SqlServerBulkCopy
 				{ "dstpassword=", "password on destination server", x => destinationPassword = x },
 				{ "dstdatabasename=", "destination database name", x => destinationDatabaseName = x },
 				{ "ignoretables=", "names of tables not to copy", x => ignoredTables = x.Split(',') },
+				{ "onlytables=", "names of the only tables to copy", x => onlyTables = x.Split(',') },
+				{ "includesystemtables", "include copying system tables (by default these are excluded). You should only use this in conjunction with 'onlytables' to opt in specific system tables", x => includeSystemTables = x != null },
 				{ "cleardstdatabase", "clears the destination database before copying the data", x => clearDestinationDatabase = x != null },
 				{ "checkidentityexists", "only reseed identity if table has identity column", x => checkIdentityExists = x != null }
 			};
@@ -78,6 +81,10 @@ namespace AppHarbor.SqlServerBulkCopy
 				{
 					throw new OptionException("destination database name not specified", "dstdatabasename");
 				}
+				if (onlyTables.Any() && ignoredTables.Any())
+				{
+					throw new OptionException("you can either opt-in for tables (--onlytables) or opt-out (--ignoretables) but not both at once.", "onlytables");
+				}
 			}
 			catch (OptionException exception)
 			{
@@ -96,23 +103,25 @@ namespace AppHarbor.SqlServerBulkCopy
 			var sourceServer = new Server(sourceConnection);
 			var sourceDatabase = sourceServer.Databases[sourceDatabaseName];
 
-			var tables = sourceDatabase.Tables
-				.OfType<Table>()
-				.Where(x => !x.IsSystemObject)
+			var tablesQuery = sourceDatabase.Tables.OfType<Table>();
+			if (!includeSystemTables)
+				tablesQuery = tablesQuery.Where(x => !x.IsSystemObject);
+			var tables = tablesQuery
 				.Select(x => new {x.Schema, x.Name, FullName = '[' + x.Schema + ']' + ".[" + x.Name + ']'})
 				.ToList();
 
-		    var actualExcludedTables =
-		        (from table in tables 
-                 where ignoredTables.Contains(table.FullName) 
-                 select table).ToList();
+			bool isUsingOptInForTables = onlyTables.Any();
+			var actualOnlyTables = tables.Where(table => onlyTables.Contains(table.FullName)).ToList();
+		    var actualExcludedTables = (isUsingOptInForTables) ?
+				tables.Except(actualOnlyTables)
+				: tables.Where(table => ignoredTables.Contains(table.FullName)).ToList();
 		    if (actualExcludedTables.Any())
 			{
-				Console.WriteLine("Ignoring: {0}", string.Join(",", actualExcludedTables.Select(x=>x.FullName)));
+				Console.WriteLine("Ignoring:\n{0}", string.Join("\n", actualExcludedTables.Select(x=>x.FullName)));
 			}
 
 			tables = tables.Except(actualExcludedTables).ToList();
-			Console.WriteLine("Copying {0} tables: {1}", tables.Count(), string.Join(",", tables.Select(x=>x.FullName)));
+			Console.WriteLine("Copying {0} tables:\n{1}", tables.Count(), string.Join("\n", tables.Select(x=>x.FullName)));
 
 			var destinationConnectionString = GetConnectionString(destinationServerName,
 				destinationDatabaseName, destinationUsername, destinationPassword);
