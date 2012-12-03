@@ -9,3 +9,6 @@ deploy/*
 TestResults/
 lib/SqlServerManagementObjects/*.dll
 _Resharper.*
+/src/*.ncrunchsolution
+/src/*.user
+/release
