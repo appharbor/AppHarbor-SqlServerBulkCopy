@@ -9,3 +9,7 @@ For trusted connections, just skip both the username and password parameters.
 Use option --checkidentityexists if you are getting sql exceptions ([table] does not contain an identity column.) when trying to clear tables without identity columns.
 
 The SMO dlls cannot be distributed with the source code due to licensing restrictions. You need to get Microsoft SQL Server 2008 R2 Shared Management Objects from the [Microsoft Download Center](http://www.microsoft.com/download/en/details.aspx?id=16978#SMO). Place `Microsoft.SqlServer.ConnectionInfo.dll`, `Microsoft.SqlServer.Management.Sdk.Sfc.dll`, `Microsoft.SqlServer.Smo.dll` and `Microsoft.SqlServer.SqlEnum.dll` in the `lib\SqlServerManagementObjects` directory.
+
+If you have the SDK already installed, you can find all the necessary DLLs in the directory:
+
+    C:\Program Files (x86)\Microsoft SQL Server\100\SDK\Assemblies
