@@ -146,7 +146,8 @@ namespace AppHarbor.SqlServerBulkCopy
 							EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all""
 
 							-- delete data in all tables
-							EXEC sp_msforeachtable ""DELETE FROM ?""
+							-- NOTE: The quoted identifier option is enabled to fix a bug where the query fails if DB has any computed columns or indexed views
+							EXEC sp_msforeachtable ""SET QUOTED_IDENTIFIER ON; DELETE FROM ?""
 
 							-- enable all constraints
 							exec sp_msforeachtable ""ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all""
